@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ecommerce Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f4f4f9;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #fff;
+            box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background: #007BFF;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        button {
+            padding: 10px 15px;
+            margin-top: 10px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Ecommerce Assistant</h1>
+    <p>Bienvenido, este será el inicio del bot en el navegador.</p>
+
+    <h2>Productos</h2>
+    <button onclick="loadProducts()">Ver productos</button>
+    <div id="products"></div>
+
+    <h2>Recomendaciones</h2>
+    <form onsubmit="getRecommendations(event)">
+        <label for="productId">ID de producto:</label>
+        <input type="number" id="productId" required>
+        <button type="submit">Recomendar</button>
+    </form>
+    <div id="recommendations"></div>
+
+    <script>
+        async function loadProducts() {
+            try {
+                const res = await fetch("/products");
+                const data = await res.json();
+                renderTable(data, "products");
+            } catch (error) {
+                document.getElementById("products").textContent = "❌ Error cargando productos";
+            }
+        }
+
+        async function getRecommendations(event) {
+            event.preventDefault();
+            const id = document.getElementById("productId").value;
+            try {
+                const res = await fetch(`/recommend/${id}`);
+                const data = await res.json();
+                renderTable(data, "recommendations");
+            } catch (error) {
+                document.getElementById("recommendations").textContent = "❌ Error cargando recomendaciones";
+            }
+        }
+
+        function renderTable(data, elementId) {
+            if (!Array.isArray(data) || data.length === 0) {
+                document.getElementById(elementId).innerHTML = "<p>No hay datos para mostrar.</p>";
+                return;
+            }
+
+            let table = "<table><tr>";
+            // Cabecera
+            Object.keys(data[0]).forEach(key => {
+                table += `<th>${key}</th>`;
+            });
+            table += "</tr>";
+
+            // Filas
+            data.forEach(item => {
+                table += "<tr>";
+                Object.values(item).forEach(value => {
+                    table += `<td>${value}</td>`;
+                });
+                table += "</tr>";
+            });
+
+            table += "</table>";
+            document.getElementById(elementId).innerHTML = table;
+        }
+    </script>
+</body>
+</html>
