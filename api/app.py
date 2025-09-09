@@ -1,44 +1,56 @@
-from flask import Flask, jsonify, render_template
-import sys, os
-
-# 👇 Agregamos la raíz del proyecto al path de Python
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# 👇 Importamos la clase desde recommender/recommender.py
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
+from pathlib import Path
 from recommender.recommender import Recommender
 
-# 👇 Le decimos a Flask dónde están las plantillas HTML
-app = Flask(__name__, template_folder="../web/templates")
+# Inicializamos FastAPI
+app = FastAPI(title="Ecommerce Assistant API")
 
-# 👇 Inicializamos el recomendador con los datos
-rec = Recommender(data_file="../data/products.csv")
-rec.train()
+# 📌 Ubicación del archivo CSV
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_FILE = BASE_DIR / "data" / "products.csv"
 
-@app.route("/")
+# Inicializamos el recomendador
+try:
+    rec = Recommender(data_file=str(DATA_FILE))
+    rec.train()
+except Exception as e:
+    rec = None
+    print(f"⚠️ No se pudo cargar el modelo: {e}")
+
+@app.get("/")
 def home():
-    return "Bienvenido a la API de Ecommerce Assistant"
+    return {"mensaje": "Bienvenido a la API de Ecommerce Assistant con FastAPI 🚀"}
 
-# 👇 Ruta para abrir el HTML en el navegador
-@app.route("/web")
+# 📌 Ruta para devolver el HTML (si lo quieres servir desde templates)
+@app.get("/web", response_class=HTMLResponse)
 def web_home():
-    return render_template("index.html")
+    try:
+        html_path = BASE_DIR / "web" / "templates" / "index.html"
+        if html_path.exists():
+            return html_path.read_text(encoding="utf-8")
+        else:
+            raise HTTPException(status_code=404, detail="index.html no encontrado")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# 👇 Nueva ruta para obtener recomendaciones
-@app.route("/recommend/<int:product_index>")
-def recommend(product_index):
+# 📌 Ruta para obtener recomendaciones
+@app.get("/recommend/{product_index}")
+def recommend(product_index: int):
+    if rec is None:
+        raise HTTPException(status_code=500, detail="Modelo no cargado")
     try:
         recommendations = rec.recommend(product_index)
-        return recommendations.to_json(orient="records", force_ascii=False)
+        return JSONResponse(content=recommendations.to_dict(orient="records"))
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        raise HTTPException(status_code=400, detail=str(e))
 
-@app.route("/products")
+# 📌 Ruta para obtener productos
+@app.get("/products")
 def get_products():
+    if rec is None:
+        raise HTTPException(status_code=500, detail="Datos no disponibles")
     try:
-        return rec.data.to_json(orient="records", force_ascii=False)
+        return JSONResponse(content=rec.data.to_dict(orient="records"))
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-if __name__ == "__main__":
-    # 👇 Host=0.0.0.0 para que se pueda acceder desde cualquier lado
-    app.run(debug=True, host="127.0.0.1", port=8000)
+        raise HTTPException(status_code=400, detail=str(e))
