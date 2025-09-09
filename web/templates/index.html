@@ -43,9 +43,10 @@
         button:hover {
             background: #0056b3;
         }
-        input {
+        select {
             padding: 8px;
-            margin: 5px;
+            margin: 5px 0;
+            width: 300px;
         }
     </style>
 </head>
@@ -54,33 +55,54 @@
     <p>Bienvenido, este será el inicio del bot en el navegador.</p>
 
     <h2>Productos</h2>
-    <button onclick="loadProducts()">Ver productos</button>
+    <button onclick="loadProducts()">Cargar productos</button>
     <div id="products"></div>
 
     <h2>Recomendaciones</h2>
     <form onsubmit="getRecommendations(event)">
-        <label for="productId">ID de producto:</label>
-        <input type="number" id="productId" required>
+        <label for="productSelect">Selecciona un producto:</label>
+        <select id="productSelect" required>
+            <option value="">-- Cargar productos primero --</option>
+        </select>
         <button type="submit">Recomendar</button>
     </form>
     <div id="recommendations"></div>
 
     <script>
+        let productsCache = [];
+
         async function loadProducts() {
             try {
-                const res = await fetch("/products");
+                const res = await fetch(window.location.origin + "/products");
                 const data = await res.json();
+                productsCache = data;
                 renderTable(data, "products");
+                fillSelect(data);
             } catch (error) {
                 document.getElementById("products").textContent = "❌ Error cargando productos";
             }
         }
 
+        function fillSelect(data) {
+            const select = document.getElementById("productSelect");
+            select.innerHTML = ""; // limpia opciones anteriores
+            data.forEach((product, index) => {
+                const option = document.createElement("option");
+                option.value = index;
+                option.textContent = product.name || `Producto ${index}`;
+                select.appendChild(option);
+            });
+        }
+
         async function getRecommendations(event) {
             event.preventDefault();
-            const id = document.getElementById("productId").value;
+            const id = document.getElementById("productSelect").value;
+            if (!id) {
+                alert("Por favor selecciona un producto.");
+                return;
+            }
             try {
-                const res = await fetch(`/recommend/${id}`);
+                const res = await fetch(window.location.origin + `/recommend/${id}`);
                 const data = await res.json();
                 renderTable(data, "recommendations");
             } catch (error) {
@@ -95,13 +117,11 @@
             }
 
             let table = "<table><tr>";
-            // Cabecera
             Object.keys(data[0]).forEach(key => {
                 table += `<th>${key}</th>`;
             });
             table += "</tr>";
 
-            // Filas
             data.forEach(item => {
                 table += "<tr>";
                 Object.values(item).forEach(value => {
